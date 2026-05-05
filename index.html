@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Anulom Vilom</title>
+  <style>
+    :root {
+      color-scheme: dark light;
+      --bg: #0f1218;
+      --fg: #e8eaef;
+      --muted: #8b929e;
+      --accent: #6ba3ff;
+      --ring: rgba(107, 163, 255, 0.35);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100dvh;
+      font-family: ui-sans-serif, system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 1.5rem;
+    }
+
+    h1 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin: 0 0 1.25rem;
+      letter-spacing: -0.02em;
+    }
+
+    .panel {
+      width: min(440px, 100%);
+      display: grid;
+      gap: 0.9rem;
+    }
+
+    body.session-active .panel {
+      gap: 0.35rem;
+    }
+
+    .panel-fields {
+      display: grid;
+      gap: 0.9rem;
+      overflow: hidden;
+      max-height: 3200px;
+      opacity: 1;
+    }
+
+    body.session-active .panel-fields {
+      max-height: 0;
+      opacity: 0;
+      margin-bottom: 0;
+      pointer-events: none;
+    }
+
+    body.session-active #start {
+      display: none;
+    }
+
+    label {
+      display: grid;
+      gap: 0.35rem;
+      font-size: 0.875rem;
+      color: var(--muted);
+    }
+
+    select {
+      width: 100%;
+      padding: 0.5rem 0.65rem;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: rgba(255, 255, 255, 0.06);
+      color: inherit;
+      font-size: 0.95rem;
+    }
+
+    select:disabled {
+      opacity: 0.55;
+    }
+
+    #duration {
+      font-variant-numeric: tabular-nums;
+    }
+
+    .duration-row {
+      display: flex;
+      align-items: stretch;
+      gap: 0.5rem;
+    }
+
+    .duration-row select {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .duration-nav-btn {
+      flex-shrink: 0;
+      min-width: 2.5rem;
+      padding: 0.5rem 0.55rem;
+      font-size: 1.15rem;
+      line-height: 1;
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--fg);
+    }
+
+    .duration-nav-btn:hover:not(:disabled) {
+      background: rgba(255, 255, 255, 0.14);
+    }
+
+    .sound-option {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.5rem;
+      font-size: 0.875rem;
+      color: var(--muted);
+      cursor: pointer;
+      line-height: 1.35;
+    }
+
+    .sound-option input {
+      margin-top: 0.2rem;
+      accent-color: var(--accent);
+    }
+
+    .level-detail {
+      font-size: 0.8rem;
+      color: var(--muted);
+      line-height: 1.45;
+      margin: 0;
+    }
+
+    .level-help-summary {
+      margin: 0 0 0.35rem;
+      color: var(--muted);
+    }
+
+    .level-steps {
+      margin: 0;
+      padding-left: 1.2rem;
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+
+    .level-steps li {
+      margin-bottom: 0.28rem;
+    }
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 0.25rem;
+    }
+
+    button {
+      padding: 0.55rem 1rem;
+      border-radius: 8px;
+      border: none;
+      font-size: 0.9rem;
+      cursor: pointer;
+      background: var(--accent);
+      color: #0a0c10;
+      font-weight: 600;
+    }
+
+    button:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    /* Bubble only while session-active (instant show/hide, no CSS transition). */
+    .viz {
+      margin-top: 0;
+      width: min(280px, 80vw);
+      aspect-ratio: 1;
+      display: none;
+      place-items: center;
+      position: relative;
+      border-radius: 50%;
+      outline-offset: 4px;
+    }
+
+    body.session-active .viz {
+      display: grid;
+      margin-top: 0.75rem;
+      cursor: pointer;
+    }
+
+    body.session-active .viz:focus-visible {
+      outline: 2px solid var(--accent);
+    }
+
+    .ring {
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      border: 3px solid var(--ring);
+      transform: scale(var(--scale, 0.55));
+      transition: transform linear;
+      will-change: transform;
+    }
+
+    .ring.inhale {
+      --scale: 1;
+    }
+
+    .ring.exhale {
+      --scale: 0.55;
+    }
+
+    /* Hold keeps the bubble at the size of the phase before it (inhale = large, exhale = small). */
+    .ring.hold-in {
+      --scale: 1;
+      transition: none;
+    }
+
+    .ring.hold-out {
+      --scale: 0.55;
+      transition: none;
+    }
+
+    .center {
+      position: relative;
+      z-index: 1;
+      text-align: center;
+    }
+
+    .phase {
+      font-size: 1.5rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+
+    .timer {
+      font-variant-numeric: tabular-nums;
+      font-size: 2.25rem;
+      margin-top: 0.35rem;
+      color: var(--accent);
+    }
+
+    .session-remaining {
+      font-variant-numeric: tabular-nums;
+      font-size: 0.95rem;
+      margin-top: 0.45rem;
+      color: var(--muted);
+      letter-spacing: 0.02em;
+    }
+
+    body:not(.session-active) .session-remaining {
+      display: none;
+    }
+
+    .hint {
+      margin-top: 1.25rem;
+      font-size: 0.8rem;
+      color: var(--muted);
+      max-width: 38rem;
+      line-height: 1.45;
+    }
+
+    .warn {
+      color: #ffb86c;
+      font-size: 0.85rem;
+      margin: 0;
+    }
+
+    .goal-meta {
+      font-size: 0.78rem;
+      color: var(--muted);
+      line-height: 1.45;
+      margin: 0;
+    }
+
+    .goal-meta code {
+      font-size: 0.85em;
+      background: rgba(255, 255, 255, 0.06);
+      padding: 0.1rem 0.35rem;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>Anulom Vilom</h1>
+
+  <div class="panel">
+    <div class="panel-fields" id="panelFields">
+      <label for="goal">Optimize for</label>
+      <select id="goal" aria-describedby="goalMeta">
+        <option value="ladder">Default</option>
+        <option value="realWorld">Real-world / athletic</option>
+        <option value="meditation">Meditation / stillness</option>
+        <option value="co2">CO₂ tolerance</option>
+      </select>
+      <p id="goalMeta" class="goal-meta"></p>
+
+      <label for="level">Pattern</label>
+      <select id="level" aria-describedby="levelDetail">
+        <option value="1">Level 1 — In / Out</option>
+        <option value="2">Level 2 — In · Hold · Out</option>
+        <option value="3">Level 3 — In · Out · Hold</option>
+        <option value="4">Level 4 — In · Hold · Out · Hold</option>
+      </select>
+      <p id="levelDetail" class="level-detail"></p>
+
+      <label for="duration">Duration (seconds)</label>
+      <div class="duration-row">
+        <button type="button" class="duration-nav-btn" id="durationPrev" aria-label="Previous timing">
+          ‹
+        </button>
+        <select id="duration" aria-describedby="levelDetail"></select>
+        <button type="button" class="duration-nav-btn" id="durationNext" aria-label="Next timing">
+          ›
+        </button>
+      </div>
+
+      <label class="sound-option">
+        <input type="checkbox" id="soundEnabled" checked />
+        <span>Metronome ticks per phase (unmute the tab; uses speakers or headphones)</span>
+      </label>
+      <p class="goal-meta" style="margin: 0">
+        Inhale/exhale/holds: same spacing—one tick every 2s with default settings (hold multiplier × base interval).
+        Inhale: bright sine; exhale/holds: lower triangle.
+      </p>
+    </div>
+
+    <div class="controls">
+      <button type="button" id="start">Start</button>
+    </div>
+  </div>
+
+  <div class="viz" id="viz" aria-live="polite" aria-hidden="true" tabindex="-1">
+    <div id="ring" class="ring exhale hold-out"></div>
+    <div class="center">
+      <div id="phase" class="phase">Ready</div>
+      <div id="timer" class="timer">—</div>
+      <div id="sessionRemaining" class="session-remaining"></div>
+    </div>
+  </div>
+
+  <p id="loadWarn" class="warn" hidden></p>
+
+  <script src="breathing-data.js"></script>
+  <script src="real-world-data.js"></script>
+  <script src="meditation-data.js"></script>
+  <script src="co2-data.js"></script>
+  <script src="breathing-audio.js"></script>
+  <script>
+    const startBtn = document.getElementById('start');
+    const vizEl = document.getElementById('viz');
+    const phaseEl = document.getElementById('phase');
+    const timerEl = document.getElementById('timer');
+    const sessionRemainingEl = document.getElementById('sessionRemaining');
+    const ringEl = document.getElementById('ring');
+    const goalEl = document.getElementById('goal');
+    const goalMetaEl = document.getElementById('goalMeta');
+    const levelEl = document.getElementById('level');
+    const durationEl = document.getElementById('duration');
+    const durationPrevBtn = document.getElementById('durationPrev');
+    const durationNextBtn = document.getElementById('durationNext');
+    const levelDetailEl = document.getElementById('levelDetail');
+    const panelFieldsEl = document.getElementById('panelFields');
+    const loadWarnEl = document.getElementById('loadWarn');
+    const soundEnabledEl = document.getElementById('soundEnabled');
+
+    let cancel = null;
+    let deferredStopSessionTimerId = null;
+    /** Auto-stop the session after this long (ms). */
+    let sessionAutoStopTimerId = null;
+    let sessionRemainingIntervalId = null;
+
+    const SESSION_AUTO_STOP_MS = 15 * 60 * 1000;
+
+    function setSessionUI(active) {
+      document.body.classList.toggle('session-active', active);
+      if (panelFieldsEl) {
+        panelFieldsEl.setAttribute('aria-hidden', active ? 'true' : 'false');
+      }
+      if (vizEl) {
+        vizEl.tabIndex = active ? 0 : -1;
+        vizEl.setAttribute('aria-hidden', active ? 'false' : 'true');
+        if (active) {
+          vizEl.setAttribute('aria-label', 'Breathing session — tap or press Enter or Space to stop');
+        } else {
+          vizEl.removeAttribute('aria-label');
+        }
+      }
+    }
+
+    const STORAGE_PREFIX = 'breathingGuide.v1.';
+
+    function storageGet(key) {
+      try {
+        return localStorage.getItem(STORAGE_PREFIX + key);
+      } catch {
+        return null;
+      }
+    }
+
+    function storageSet(key, value) {
+      try {
+        if (value == null || value === '') localStorage.removeItem(STORAGE_PREFIX + key);
+        else localStorage.setItem(STORAGE_PREFIX + key, value);
+      } catch {
+        /* quota / private mode */
+      }
+    }
+
+    function saveSettings() {
+      storageSet('goal', goalEl.value);
+      storageSet('level', levelEl.value);
+      storageSet('duration', durationEl.value);
+      storageSet('sound', soundEnabledEl.checked ? '1' : '0');
+    }
+
+    function applyAudioPrefs() {
+      const s = storageGet('sound');
+      if (s === '0') soundEnabledEl.checked = false;
+      else if (s === '1') soundEnabledEl.checked = true;
+      if (typeof BreathingAudio !== 'undefined') {
+        BreathingAudio.enabled = soundEnabledEl.checked;
+      }
+    }
+
+    function activeLibrary() {
+      const map = {
+        ladder: window.BREATHING_LIBRARY_LADDER,
+        realWorld: window.BREATHING_LIBRARY_REAL_WORLD,
+        meditation: window.BREATHING_LIBRARY_MEDITATION,
+        co2: window.BREATHING_LIBRARY_CO2,
+      };
+      return map[goalEl.value] || null;
+    }
+
+    function dataReady() {
+      const lib = activeLibrary();
+      return !!(lib && lib.timings && typeof lib.timings === 'object');
+    }
+
+    function allPresets(level) {
+      const lib = activeLibrary();
+      return (lib && lib.timings && lib.timings[String(level)]) || [];
+    }
+
+    function renderLevelHelp(lv) {
+      const n = Number(lv);
+      const lib = activeLibrary();
+      const s = lib && lib.steps && lib.steps[n];
+      if (!s) return '';
+      return `<p class="level-help-summary">${s.summary}</p>`;
+    }
+
+    function timingKey(p) {
+      return `${p.inhale}|${p.holdIn}|${p.exhale}|${p.holdOut}`;
+    }
+
+    function uniqueSortedTimings(level) {
+      const all = allPresets(level);
+      const seen = new Map();
+      for (const p of all) {
+        const k = timingKey(p);
+        if (!seen.has(k)) {
+          seen.set(k, {
+            inhale: p.inhale,
+            holdIn: p.holdIn,
+            exhale: p.exhale,
+            holdOut: p.holdOut,
+            label: p.label,
+          });
+        }
+      }
+      return Array.from(seen.values()).sort(
+        (a, b) =>
+          a.inhale - b.inhale ||
+          a.holdIn - b.holdIn ||
+          a.exhale - b.exhale ||
+          a.holdOut - b.holdOut,
+      );
+    }
+
+    function getSelectedTiming() {
+      const raw = durationEl.value;
+      if (!raw) return null;
+      const parts = raw.split('|').map((x) => Number(x));
+      if (parts.length !== 4 || parts.some((n) => Number.isNaN(n))) return null;
+      return {
+        inhale: parts[0],
+        holdIn: parts[1],
+        exhale: parts[2],
+        holdOut: parts[3],
+      };
+    }
+
+    const LEVEL_MIN = 1;
+    const LEVEL_MAX = 4;
+
+    function updateDurationNavState() {
+      const n = durationEl.options.length;
+      const navOk = dataReady() && n > 0;
+      if (!navOk) {
+        durationPrevBtn.disabled = true;
+        durationNextBtn.disabled = true;
+        return;
+      }
+      const lv = Number(levelEl.value);
+      const idx = durationEl.selectedIndex;
+      const atFirst = lv === LEVEL_MIN && idx <= 0;
+      const atLast = lv === LEVEL_MAX && idx >= n - 1;
+      durationPrevBtn.disabled = atFirst;
+      durationNextBtn.disabled = atLast;
+    }
+
+    function stepDuration(delta) {
+      if (!dataReady()) return;
+      const opts = durationEl.options;
+      const n = opts.length;
+      if (n === 0) return;
+
+      const lv = Number(levelEl.value);
+      const idx = durationEl.selectedIndex;
+
+      if (delta > 0) {
+        if (idx < n - 1) {
+          durationEl.selectedIndex = idx + 1;
+        } else if (lv < LEVEL_MAX) {
+          levelEl.value = String(lv + 1);
+          populateDurations();
+          if (durationEl.options.length > 0) {
+            durationEl.selectedIndex = 0;
+          }
+        } else {
+          return;
+        }
+      } else if (idx > 0) {
+        durationEl.selectedIndex = idx - 1;
+      } else if (lv > LEVEL_MIN) {
+        levelEl.value = String(lv - 1);
+        populateDurations();
+        const m = durationEl.options.length;
+        if (m > 0) {
+          durationEl.selectedIndex = m - 1;
+        }
+      } else {
+        return;
+      }
+
+      saveSettings();
+      if (dataReady()) {
+        startBtn.disabled = !getSelectedTiming();
+      }
+      updateDurationNavState();
+    }
+
+    function updateGoalMeta() {
+      const lib = activeLibrary();
+      if (!lib) {
+        goalMetaEl.textContent = '';
+        return;
+      }
+      goalMetaEl.innerHTML = lib.description;
+    }
+
+    /**
+     * @param {string} [preferredDurationKey] — restore this timing key if present (e.g. from localStorage).
+     */
+    function populateDurations(preferredDurationKey) {
+      updateGoalMeta();
+      const lv = Number(levelEl.value);
+      levelDetailEl.innerHTML = renderLevelHelp(lv);
+      const prev =
+        preferredDurationKey !== undefined ? preferredDurationKey : durationEl.value;
+      const timings = uniqueSortedTimings(lv);
+      durationEl.innerHTML = '';
+      timings.forEach((t) => {
+        const opt = document.createElement('option');
+        opt.value = timingKey(t);
+        opt.textContent = t.label;
+        durationEl.appendChild(opt);
+      });
+      if (timings.some((t) => timingKey(t) === prev)) {
+        durationEl.value = prev;
+      }
+      if (dataReady()) {
+        startBtn.disabled = !getSelectedTiming();
+      }
+      updateDurationNavState();
+    }
+
+    function applySavedSettings() {
+      const sg = storageGet('goal');
+      if (sg && [...goalEl.options].some((o) => o.value === sg)) goalEl.value = sg;
+      const sl = storageGet('level');
+      if (sl && [...levelEl.options].some((o) => o.value === sl)) levelEl.value = sl;
+      const sd = storageGet('duration');
+      applyAudioPrefs();
+      populateDurations(sd !== null ? sd : undefined);
+    }
+
+    const PHASE_GAP_MS = 500;
+    const PREP_SECONDS = 3;
+
+    function sleep(ms) {
+      return new Promise((r) => setTimeout(r, ms));
+    }
+
+    /** Short pause between phases so transitions don’t feel rushed. */
+    async function phaseGap(signal) {
+      const end = performance.now() + PHASE_GAP_MS;
+      while (performance.now() < end) {
+        if (signal.aborted) return false;
+        await sleep(50);
+      }
+      return true;
+    }
+
+    function fmtWholeSec(sec) {
+      return String(Math.max(0, Math.ceil(Number(sec) || 0)));
+    }
+
+    function fmtMmSsFromMs(ms) {
+      const totalSec = Math.max(0, Math.floor(Number(ms) / 1000));
+      const m = Math.floor(totalSec / 60);
+      const s = totalSec % 60;
+      return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    }
+
+    function setPhaseUI(label, secondsRemaining, phaseClass, transitionMs) {
+      phaseEl.textContent = label;
+      timerEl.textContent = fmtWholeSec(secondsRemaining);
+      ringEl.classList.remove('inhale', 'exhale', 'hold-in', 'hold-out');
+      ringEl.classList.add(phaseClass);
+      ringEl.style.transitionDuration = transitionMs ? `${transitionMs}ms` : '0ms';
+      if (typeof BreathingAudio !== 'undefined') {
+        void BreathingAudio.playPhaseCue(label, phaseClass, secondsRemaining);
+      }
+    }
+
+    async function runCountdown(signal, label, totalSec, phaseClass, animateRing) {
+      const start = performance.now();
+      const end = start + totalSec * 1000;
+      const transitionMs = animateRing ? totalSec * 1000 : 0;
+      setPhaseUI(label, totalSec, phaseClass, transitionMs);
+
+      while (performance.now() < end) {
+        if (signal.aborted) return false;
+        const left = Math.max(0, (end - performance.now()) / 1000);
+        timerEl.textContent = fmtWholeSec(left);
+        await sleep(50);
+        if (signal.aborted) return false;
+      }
+      timerEl.textContent = '0';
+      return true;
+    }
+
+    async function runHold(signal, label, totalSec, afterBreath) {
+      const phaseClass = afterBreath === 'inhale' ? 'hold-in' : 'hold-out';
+      return runCountdown(signal, label, totalSec, phaseClass, false);
+    }
+
+    async function runPrep(signal) {
+      return runCountdown(signal, 'Get ready', PREP_SECONDS, 'hold-out', false);
+    }
+
+    async function loop() {
+      if (deferredStopSessionTimerId != null) {
+        clearTimeout(deferredStopSessionTimerId);
+        deferredStopSessionTimerId = null;
+      }
+      cancel = new AbortController();
+      const signal = cancel.signal;
+      /** If > 0, `finally` delays `stopSession` so the session-end gong isn’t ducked immediately. */
+      let deferAudioStopMs = 0;
+
+      const run = async () => {
+        deferAudioStopMs = 0;
+        if (typeof BreathingAudio !== 'undefined') {
+          await BreathingAudio.startSession();
+        }
+        if (!(await runPrep(signal))) return;
+
+        let sessionExpired = false;
+        const sessionEndPerf = performance.now() + SESSION_AUTO_STOP_MS;
+        function tickSessionRemaining() {
+          const leftMs = Math.max(0, sessionEndPerf - performance.now());
+          sessionRemainingEl.textContent = `${fmtMmSsFromMs(leftMs)}`;
+        }
+
+        sessionAutoStopTimerId = setTimeout(() => {
+          sessionExpired = true;
+          sessionAutoStopTimerId = null;
+        }, SESSION_AUTO_STOP_MS);
+        tickSessionRemaining();
+        sessionRemainingIntervalId = setInterval(tickSessionRemaining, 500);
+
+        while (!signal.aborted) {
+          const timing = getSelectedTiming();
+          if (!timing) break;
+          const inhale = Math.max(0.5, timing.inhale);
+          const holdIn = Math.max(0, timing.holdIn);
+          const exhale = Math.max(0.5, timing.exhale);
+          const holdOut = Math.max(0, timing.holdOut);
+
+          if (!(await runCountdown(signal, 'Inhale', inhale, 'inhale', true))) break;
+          if (!(await phaseGap(signal))) break;
+
+          if (holdIn > 0) {
+            if (!(await runHold(signal, 'Hold', holdIn, 'inhale'))) break;
+            if (!(await phaseGap(signal))) break;
+          }
+
+          if (!(await runCountdown(signal, 'Exhale', exhale, 'exhale', true))) break;
+          if (!(await phaseGap(signal))) break;
+
+          if (holdOut > 0) {
+            if (!(await runHold(signal, 'Hold', holdOut, 'exhale'))) break;
+            if (!(await phaseGap(signal))) break;
+          }
+
+          if (sessionExpired) {
+            if (typeof BreathingAudio !== 'undefined') {
+              const playGong = BreathingAudio.enabled;
+              BreathingAudio.playSessionEndGong();
+              if (playGong && BreathingAudio.SESSION_END_GONG_TAIL_MS) {
+                deferAudioStopMs = BreathingAudio.SESSION_END_GONG_TAIL_MS + 450;
+              }
+            }
+            break;
+          }
+        }
+      };
+
+      try {
+        await run();
+      } finally {
+        if (sessionAutoStopTimerId != null) {
+          clearTimeout(sessionAutoStopTimerId);
+          sessionAutoStopTimerId = null;
+        }
+        if (sessionRemainingIntervalId != null) {
+          clearInterval(sessionRemainingIntervalId);
+          sessionRemainingIntervalId = null;
+        }
+        sessionRemainingEl.textContent = '';
+        if (typeof BreathingAudio !== 'undefined') {
+          if (deferAudioStopMs > 0) {
+            deferredStopSessionTimerId = setTimeout(() => {
+              deferredStopSessionTimerId = null;
+              BreathingAudio.stopSession();
+            }, deferAudioStopMs);
+          } else {
+            BreathingAudio.stopSession();
+          }
+        }
+        setSessionUI(false);
+        phaseEl.textContent = 'Ready';
+        timerEl.textContent = '—';
+        ringEl.classList.remove('inhale', 'exhale', 'hold-in', 'hold-out');
+        ringEl.classList.add('exhale', 'hold-out');
+        goalEl.disabled = false;
+        levelEl.disabled = false;
+        durationEl.disabled = false;
+        updateDurationNavState();
+        startBtn.disabled = !dataReady() || !getSelectedTiming();
+      }
+    }
+
+    goalEl.addEventListener('change', () => {
+      populateDurations();
+      saveSettings();
+    });
+    levelEl.addEventListener('change', () => {
+      populateDurations();
+      saveSettings();
+    });
+    durationEl.addEventListener('change', () => {
+      saveSettings();
+      if (dataReady()) {
+        startBtn.disabled = !getSelectedTiming();
+      }
+      updateDurationNavState();
+    });
+
+    durationPrevBtn.addEventListener('click', () => {
+      stepDuration(-1);
+    });
+    durationNextBtn.addEventListener('click', () => {
+      stepDuration(1);
+    });
+
+    soundEnabledEl.addEventListener('change', () => {
+      if (typeof BreathingAudio !== 'undefined') {
+        BreathingAudio.enabled = soundEnabledEl.checked;
+      }
+      saveSettings();
+    });
+
+    startBtn.addEventListener('click', () => {
+      if (!dataReady()) {
+        alert('Breathing data did not load. Keep all *-data.js files next to this page.');
+        return;
+      }
+      if (!getSelectedTiming()) {
+        alert('Choose a duration.');
+        return;
+      }
+      startBtn.disabled = true;
+      goalEl.disabled = true;
+      levelEl.disabled = true;
+      durationEl.disabled = true;
+      durationPrevBtn.disabled = true;
+      durationNextBtn.disabled = true;
+      if (typeof BreathingAudio !== 'undefined') {
+        BreathingAudio.enabled = soundEnabledEl.checked;
+        if (soundEnabledEl.checked) {
+          BreathingAudio.unlockFromUserGesture();
+        }
+      }
+      setSessionUI(true);
+      loop();
+    });
+
+    function stopSessionFromViz() {
+      if (!document.body.classList.contains('session-active')) return;
+      if (cancel) cancel.abort();
+    }
+
+    vizEl.addEventListener('click', stopSessionFromViz);
+    vizEl.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      e.preventDefault();
+      stopSessionFromViz();
+    });
+
+    const libsOk =
+      window.BREATHING_LIBRARY_LADDER &&
+      window.BREATHING_LIBRARY_REAL_WORLD &&
+      window.BREATHING_LIBRARY_MEDITATION &&
+      window.BREATHING_LIBRARY_CO2;
+    if (!libsOk) {
+      loadWarnEl.hidden = false;
+      loadWarnEl.textContent =
+        'Missing one or more data files: breathing-data.js, real-world-data.js, meditation-data.js, co2-data.js (same folder as this page).';
+      startBtn.disabled = true;
+      durationPrevBtn.disabled = true;
+      durationNextBtn.disabled = true;
+    } else if (!dataReady()) {
+      loadWarnEl.hidden = false;
+      loadWarnEl.textContent = 'Could not read timings for the selected track.';
+      startBtn.disabled = true;
+      durationPrevBtn.disabled = true;
+      durationNextBtn.disabled = true;
+    } else {
+      applySavedSettings();
+    }
+  </script>
+</body>
+
+</html>
