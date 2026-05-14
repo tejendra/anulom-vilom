@@ -326,11 +326,18 @@
 
       <label class="sound-option">
         <input type="checkbox" id="soundEnabled" checked />
-        <span>Metronome ticks per phase (unmute the tab; uses speakers or headphones)</span>
+        <span>Sound during session (unmute the tab; uses speakers or headphones)</span>
       </label>
-      <p class="goal-meta" style="margin: 0">
-        Inhale/exhale/holds: same spacing—one tick every 2s with default settings (hold multiplier × base interval).
-        Inhale: bright sine; exhale/holds: lower triangle.
+      <label for="soundMode">Sound style</label>
+      <select id="soundMode" aria-describedby="soundModeHint">
+        <option value="metronome">Metronome ticks (default)</option>
+        <option value="mp3">Phase clips — inhale / exhale / hold (crossfaded)</option>
+      </select>
+      <p id="soundModeHint" class="goal-meta" style="margin: 0">
+        Metronome: one tick every 2s; inhale bright sine; exhale and holds lower triangle.
+        <br>
+        Phase clips: uses <code>inhale.mp3</code>, <code>exhale.mp3</code>, and <code>hold.mp3</code> with soft fades
+        between phases.
       </p>
     </div>
 
@@ -355,6 +362,7 @@
   <script src="meditation-data.js"></script>
   <script src="co2-data.js"></script>
   <script src="breathing-audio.js"></script>
+  <script src="breathing-audio-mp3.js"></script>
   <script>
     const startBtn = document.getElementById('start');
     const vizEl = document.getElementById('viz');
@@ -372,6 +380,7 @@
     const panelFieldsEl = document.getElementById('panelFields');
     const loadWarnEl = document.getElementById('loadWarn');
     const soundEnabledEl = document.getElementById('soundEnabled');
+    const soundModeEl = document.getElementById('soundMode');
 
     let cancel = null;
     let deferredStopSessionTimerId = null;
@@ -421,15 +430,32 @@
       storageSet('level', levelEl.value);
       storageSet('duration', durationEl.value);
       storageSet('sound', soundEnabledEl.checked ? '1' : '0');
+      storageSet('soundMode', soundModeEl.value);
+    }
+
+    function syncSoundEngines() {
+      const on = soundEnabledEl.checked;
+      const mp3 = soundModeEl.value === 'mp3';
+      if (typeof BreathingAudio !== 'undefined') {
+        BreathingAudio.enabled = on && !mp3;
+      }
+      if (typeof BreathingAudioMp3 !== 'undefined') {
+        BreathingAudioMp3.enabled = on && mp3;
+      }
     }
 
     function applyAudioPrefs() {
       const s = storageGet('sound');
       if (s === '0') soundEnabledEl.checked = false;
       else if (s === '1') soundEnabledEl.checked = true;
-      if (typeof BreathingAudio !== 'undefined') {
-        BreathingAudio.enabled = soundEnabledEl.checked;
-      }
+      const sm = storageGet('soundMode');
+      if (sm === 'mp3' || sm === 'metronome') soundModeEl.value = sm;
+      syncSoundEngines();
+      updateSoundModeDisabled();
+    }
+
+    function updateSoundModeDisabled() {
+      soundModeEl.disabled = !soundEnabledEl.checked;
     }
 
     function activeLibrary() {
@@ -640,8 +666,11 @@
       ringEl.classList.remove('inhale', 'exhale', 'hold-in', 'hold-out');
       ringEl.classList.add(phaseClass);
       ringEl.style.transitionDuration = transitionMs ? `${transitionMs}ms` : '0ms';
-      if (typeof BreathingAudio !== 'undefined') {
+      if (typeof BreathingAudio !== 'undefined' && BreathingAudio.enabled) {
         void BreathingAudio.playPhaseCue(label, phaseClass, secondsRemaining);
+      }
+      if (typeof BreathingAudioMp3 !== 'undefined' && BreathingAudioMp3.enabled) {
+        void BreathingAudioMp3.playPhaseCue(label, phaseClass, secondsRemaining);
       }
     }
 
@@ -683,8 +712,11 @@
 
       const run = async () => {
         deferAudioStopMs = 0;
-        if (typeof BreathingAudio !== 'undefined') {
+        if (typeof BreathingAudio !== 'undefined' && BreathingAudio.enabled) {
           await BreathingAudio.startSession();
+        }
+        if (typeof BreathingAudioMp3 !== 'undefined' && BreathingAudioMp3.enabled) {
+          await BreathingAudioMp3.startSession();
         }
         if (!(await runPrep(signal))) return;
 
@@ -727,11 +759,15 @@
           }
 
           if (sessionExpired) {
-            if (typeof BreathingAudio !== 'undefined') {
-              const playGong = BreathingAudio.enabled;
+            if (typeof BreathingAudio !== 'undefined' && BreathingAudio.enabled) {
               BreathingAudio.playSessionEndGong();
-              if (playGong && BreathingAudio.SESSION_END_GONG_TAIL_MS) {
+              if (BreathingAudio.SESSION_END_GONG_TAIL_MS) {
                 deferAudioStopMs = BreathingAudio.SESSION_END_GONG_TAIL_MS + 450;
+              }
+            } else if (typeof BreathingAudioMp3 !== 'undefined' && BreathingAudioMp3.enabled) {
+              BreathingAudioMp3.notifySessionTimeEnd();
+              if (BreathingAudioMp3.SESSION_END_TAIL_MS) {
+                deferAudioStopMs = BreathingAudioMp3.SESSION_END_TAIL_MS;
               }
             }
             break;
@@ -751,15 +787,15 @@
           sessionRemainingIntervalId = null;
         }
         sessionRemainingEl.textContent = '';
-        if (typeof BreathingAudio !== 'undefined') {
-          if (deferAudioStopMs > 0) {
-            deferredStopSessionTimerId = setTimeout(() => {
-              deferredStopSessionTimerId = null;
-              BreathingAudio.stopSession();
-            }, deferAudioStopMs);
-          } else {
-            BreathingAudio.stopSession();
-          }
+        if (deferAudioStopMs > 0) {
+          deferredStopSessionTimerId = setTimeout(() => {
+            deferredStopSessionTimerId = null;
+            if (typeof BreathingAudio !== 'undefined') BreathingAudio.stopSession();
+            if (typeof BreathingAudioMp3 !== 'undefined') BreathingAudioMp3.stopSession();
+          }, deferAudioStopMs);
+        } else {
+          if (typeof BreathingAudio !== 'undefined') BreathingAudio.stopSession();
+          if (typeof BreathingAudioMp3 !== 'undefined') BreathingAudioMp3.stopSession();
         }
         setSessionUI(false);
         phaseEl.textContent = 'Ready';
@@ -798,9 +834,13 @@
     });
 
     soundEnabledEl.addEventListener('change', () => {
-      if (typeof BreathingAudio !== 'undefined') {
-        BreathingAudio.enabled = soundEnabledEl.checked;
-      }
+      syncSoundEngines();
+      updateSoundModeDisabled();
+      saveSettings();
+    });
+
+    soundModeEl.addEventListener('change', () => {
+      syncSoundEngines();
       saveSettings();
     });
 
@@ -819,10 +859,13 @@
       durationEl.disabled = true;
       durationPrevBtn.disabled = true;
       durationNextBtn.disabled = true;
-      if (typeof BreathingAudio !== 'undefined') {
-        BreathingAudio.enabled = soundEnabledEl.checked;
-        if (soundEnabledEl.checked) {
+      syncSoundEngines();
+      if (soundEnabledEl.checked) {
+        if (typeof BreathingAudio !== 'undefined' && BreathingAudio.enabled) {
           BreathingAudio.unlockFromUserGesture();
+        }
+        if (typeof BreathingAudioMp3 !== 'undefined' && BreathingAudioMp3.enabled) {
+          BreathingAudioMp3.unlockFromUserGesture();
         }
       }
       setSessionUI(true);
