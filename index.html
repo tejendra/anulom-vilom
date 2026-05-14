@@ -113,7 +113,7 @@
     }
 
     .choice-grid--goal {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
+      grid-template-columns: repeat(4, minmax(0, 1fr));
     }
 
     .choice-grid--level {
@@ -383,11 +383,184 @@
       padding: 0.1rem 0.35rem;
       border-radius: 4px;
     }
+
+    .howto {
+      width: min(440px, 100%);
+      margin-bottom: 1.25rem;
+    }
+
+    body.session-active .howto {
+      display: none;
+    }
+
+    .howto details {
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.04);
+      overflow: hidden;
+    }
+
+    .howto summary {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      padding: 0.8rem 1rem;
+      font-weight: 600;
+      font-size: 0.9rem;
+      color: var(--fg);
+      cursor: pointer;
+      list-style: none;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      transition: background 0.15s ease;
+    }
+
+    .howto summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .howto summary::marker {
+      content: none;
+    }
+
+    .howto summary:hover {
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    .howto summary:focus {
+      outline: none;
+    }
+
+    .howto summary:focus-visible {
+      box-shadow: inset 0 0 0 2px var(--ring);
+    }
+
+    .howto summary::after {
+      content: '';
+      flex-shrink: 0;
+      width: 0.55rem;
+      height: 0.55rem;
+      margin-top: -0.1rem;
+      border-right: 2px solid var(--muted);
+      border-bottom: 2px solid var(--muted);
+      transform: rotate(45deg);
+      transition: transform 0.2s ease, border-color 0.15s ease;
+      opacity: 0.85;
+    }
+
+    .howto details[open] summary::after {
+      margin-top: 0.15rem;
+      transform: rotate(225deg);
+    }
+
+    .howto details[open] summary {
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    .howto-summary__title {
+      min-width: 0;
+    }
+
+    .howto-body {
+      padding: 0.75rem 1rem 1rem;
+      font-size: 0.8rem;
+      color: var(--muted);
+      line-height: 1.5;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .howto-body p {
+      margin: 0 0 0.55rem;
+    }
+
+    .howto-body ol {
+      margin: 0 0 0.55rem;
+      padding-left: 1.2rem;
+    }
+
+    .howto-body li {
+      margin-bottom: 0.4rem;
+    }
+
+    .howto-body li:last-child {
+      margin-bottom: 0;
+    }
+
+    .howto-note {
+      font-size: 0.78rem;
+      opacity: 0.95;
+      margin-bottom: 0 !important;
+    }
+
+    .disclaimer {
+      width: min(440px, 100%);
+      margin-top: 2rem;
+      font-size: 0.75rem;
+      color: var(--muted);
+      line-height: 1.45;
+      padding: 0.65rem 0.85rem;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .disclaimer p {
+      margin: 0;
+    }
+
+    body.session-active .disclaimer {
+      display: none;
+    }
   </style>
 </head>
 
 <body>
   <h1>Anulom Vilom</h1>
+
+  <section class="howto" aria-label="Instructions for anulom vilom">
+    <details>
+      <summary><span class="howto-summary__title">Instructions</span></summary>
+      <div class="howto-body">
+        <p>
+          <strong>Anulom vilom</strong> is alternate nostril
+          breathing: you inhale through one nostril, exhale through the other, then reverse for the next
+          cycle.
+        </p>
+        <ol>
+          <li>Sit with a long, easy spine and relaxed shoulders. Soften the jaw and face.</li>
+          <li>
+            Rest your left hand on your knee. With the right hand, use <strong>Vishnu mudra</strong>:
+            fold the tips of the index and middle fingers toward the palm; the thumb, ring finger, and
+            little finger stay extended.
+          </li>
+          <li>
+            To close the right nostril, place your thumb on the right nostril. To close the left nostril, place your
+            ring and little fingers on the left nostril.
+          </li>
+          <li>
+            <strong>Follow the app:</strong> each <strong>Inhale</strong> is in through the open nostril; each
+            <strong>Exhale</strong> is out through the other. Move thumb and ring finger so only one side is open
+            at a time.
+          </li>
+          <li>
+            On <strong>Hold</strong> (when your pattern includes it), many people lightly seal both nostrils with
+            thumb and ring finger and pause briefly; only as long as it stays easy.
+          </li>
+          <li>
+            One classic full round: <strong>inhale left → exhale right → inhale right → exhale left</strong>. Repeat,
+            keeping the breath
+            smooth and never strained.
+          </li>
+          <li>If you feel dizzy or agitated, stop, breathe normally through both nostrils, and rest.</li>
+        </ol>
+        <p class="howto-note">
+          Traditions vary on starting nostril, hand, and exact retentions. Use the timing here as a
+          metronome and follow the technique you were taught when they differ.
+        </p>
+      </div>
+    </details>
+  </section>
 
   <div class="panel">
     <div class="panel-fields" id="panelFields">
@@ -417,8 +590,8 @@
         <button type="button" class="choice-tile" data-goal="realWorld" aria-pressed="false"
           aria-label="Real-world / athletic">
           <svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true">
-            <path fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"
-              stroke-linejoin="round" d="M3 12h3l2-6 3 12 3-16 2 10h5" />
+            <path fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"
+              d="M3 12h3l2-6 3 12 3-16 2 10h5" />
           </svg>
           <span>Athletic</span>
         </button>
@@ -497,6 +670,17 @@
       <button type="button" id="start">Start</button>
     </div>
   </div>
+
+
+
+  <aside class="disclaimer" role="note">
+    <p>
+      I made this app for my own breathing practice. It is <strong>not medical advice</strong> and does not
+      diagnose, treat, or prevent any condition. If you are unsure whether guided breath work is appropriate
+      for you speak with a qualified clinician first. Stop and breathe normally if you feel faint, dizzy,
+      or unwell.
+    </p>
+  </aside>
 
   <div class="viz" id="viz" aria-live="polite" aria-hidden="true" tabindex="-1">
     <div id="ring" class="ring exhale hold-out"></div>
