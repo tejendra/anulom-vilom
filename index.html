@@ -117,21 +117,6 @@
       background: rgba(255, 255, 255, 0.14);
     }
 
-    .sound-option {
-      display: flex;
-      align-items: flex-start;
-      gap: 0.5rem;
-      font-size: 0.875rem;
-      color: var(--muted);
-      cursor: pointer;
-      line-height: 1.35;
-    }
-
-    .sound-option input {
-      margin-top: 0.2rem;
-      accent-color: var(--accent);
-    }
-
     .level-detail {
       font-size: 0.8rem;
       color: var(--muted);
@@ -323,22 +308,6 @@
           ›
         </button>
       </div>
-
-      <label class="sound-option">
-        <input type="checkbox" id="soundEnabled" checked />
-        <span>Sound during session (unmute the tab; uses speakers or headphones)</span>
-      </label>
-      <label for="soundMode">Sound style</label>
-      <select id="soundMode" aria-describedby="soundModeHint">
-        <option value="metronome">Metronome ticks (default)</option>
-        <option value="mp3">Phase clips — inhale / exhale / hold (crossfaded)</option>
-      </select>
-      <p id="soundModeHint" class="goal-meta" style="margin: 0">
-        Metronome: one tick every 2s; inhale bright sine; exhale and holds lower triangle.
-        <br>
-        Phase clips: uses <code>inhale.mp3</code>, <code>exhale.mp3</code>, and <code>hold.mp3</code> with soft fades
-        between phases.
-      </p>
     </div>
 
     <div class="controls">
@@ -362,7 +331,6 @@
   <script src="meditation-data.js"></script>
   <script src="co2-data.js"></script>
   <script src="breathing-audio.js"></script>
-  <script src="breathing-audio-mp3.js"></script>
   <script>
     const startBtn = document.getElementById('start');
     const vizEl = document.getElementById('viz');
@@ -379,8 +347,6 @@
     const levelDetailEl = document.getElementById('levelDetail');
     const panelFieldsEl = document.getElementById('panelFields');
     const loadWarnEl = document.getElementById('loadWarn');
-    const soundEnabledEl = document.getElementById('soundEnabled');
-    const soundModeEl = document.getElementById('soundMode');
 
     let cancel = null;
     let deferredStopSessionTimerId = null;
@@ -429,33 +395,6 @@
       storageSet('goal', goalEl.value);
       storageSet('level', levelEl.value);
       storageSet('duration', durationEl.value);
-      storageSet('sound', soundEnabledEl.checked ? '1' : '0');
-      storageSet('soundMode', soundModeEl.value);
-    }
-
-    function syncSoundEngines() {
-      const on = soundEnabledEl.checked;
-      const mp3 = soundModeEl.value === 'mp3';
-      if (typeof BreathingAudio !== 'undefined') {
-        BreathingAudio.enabled = on && !mp3;
-      }
-      if (typeof BreathingAudioMp3 !== 'undefined') {
-        BreathingAudioMp3.enabled = on && mp3;
-      }
-    }
-
-    function applyAudioPrefs() {
-      const s = storageGet('sound');
-      if (s === '0') soundEnabledEl.checked = false;
-      else if (s === '1') soundEnabledEl.checked = true;
-      const sm = storageGet('soundMode');
-      if (sm === 'mp3' || sm === 'metronome') soundModeEl.value = sm;
-      syncSoundEngines();
-      updateSoundModeDisabled();
-    }
-
-    function updateSoundModeDisabled() {
-      soundModeEl.disabled = !soundEnabledEl.checked;
     }
 
     function activeLibrary() {
@@ -628,7 +567,6 @@
       const sl = storageGet('level');
       if (sl && [...levelEl.options].some((o) => o.value === sl)) levelEl.value = sl;
       const sd = storageGet('duration');
-      applyAudioPrefs();
       populateDurations(sd !== null ? sd : undefined);
     }
 
@@ -666,11 +604,8 @@
       ringEl.classList.remove('inhale', 'exhale', 'hold-in', 'hold-out');
       ringEl.classList.add(phaseClass);
       ringEl.style.transitionDuration = transitionMs ? `${transitionMs}ms` : '0ms';
-      if (typeof BreathingAudio !== 'undefined' && BreathingAudio.enabled) {
+      if (typeof BreathingAudio !== 'undefined') {
         void BreathingAudio.playPhaseCue(label, phaseClass, secondsRemaining);
-      }
-      if (typeof BreathingAudioMp3 !== 'undefined' && BreathingAudioMp3.enabled) {
-        void BreathingAudioMp3.playPhaseCue(label, phaseClass, secondsRemaining);
       }
     }
 
@@ -707,16 +642,13 @@
       }
       cancel = new AbortController();
       const signal = cancel.signal;
-      /** If > 0, `finally` delays `stopSession` so the session-end gong isn’t ducked immediately. */
+      /** If > 0, `finally` delays `stopSession` so the session-end fade isn’t cut off. */
       let deferAudioStopMs = 0;
 
       const run = async () => {
         deferAudioStopMs = 0;
-        if (typeof BreathingAudio !== 'undefined' && BreathingAudio.enabled) {
+        if (typeof BreathingAudio !== 'undefined') {
           await BreathingAudio.startSession();
-        }
-        if (typeof BreathingAudioMp3 !== 'undefined' && BreathingAudioMp3.enabled) {
-          await BreathingAudioMp3.startSession();
         }
         if (!(await runPrep(signal))) return;
 
@@ -759,15 +691,10 @@
           }
 
           if (sessionExpired) {
-            if (typeof BreathingAudio !== 'undefined' && BreathingAudio.enabled) {
-              BreathingAudio.playSessionEndGong();
-              if (BreathingAudio.SESSION_END_GONG_TAIL_MS) {
-                deferAudioStopMs = BreathingAudio.SESSION_END_GONG_TAIL_MS + 450;
-              }
-            } else if (typeof BreathingAudioMp3 !== 'undefined' && BreathingAudioMp3.enabled) {
-              BreathingAudioMp3.notifySessionTimeEnd();
-              if (BreathingAudioMp3.SESSION_END_TAIL_MS) {
-                deferAudioStopMs = BreathingAudioMp3.SESSION_END_TAIL_MS;
+            if (typeof BreathingAudio !== 'undefined') {
+              BreathingAudio.notifySessionTimeEnd();
+              if (BreathingAudio.SESSION_END_TAIL_MS) {
+                deferAudioStopMs = BreathingAudio.SESSION_END_TAIL_MS;
               }
             }
             break;
@@ -791,11 +718,9 @@
           deferredStopSessionTimerId = setTimeout(() => {
             deferredStopSessionTimerId = null;
             if (typeof BreathingAudio !== 'undefined') BreathingAudio.stopSession();
-            if (typeof BreathingAudioMp3 !== 'undefined') BreathingAudioMp3.stopSession();
           }, deferAudioStopMs);
         } else {
           if (typeof BreathingAudio !== 'undefined') BreathingAudio.stopSession();
-          if (typeof BreathingAudioMp3 !== 'undefined') BreathingAudioMp3.stopSession();
         }
         setSessionUI(false);
         phaseEl.textContent = 'Ready';
@@ -833,17 +758,6 @@
       stepDuration(1);
     });
 
-    soundEnabledEl.addEventListener('change', () => {
-      syncSoundEngines();
-      updateSoundModeDisabled();
-      saveSettings();
-    });
-
-    soundModeEl.addEventListener('change', () => {
-      syncSoundEngines();
-      saveSettings();
-    });
-
     startBtn.addEventListener('click', () => {
       if (!dataReady()) {
         alert('Breathing data did not load. Keep all *-data.js files next to this page.');
@@ -859,14 +773,8 @@
       durationEl.disabled = true;
       durationPrevBtn.disabled = true;
       durationNextBtn.disabled = true;
-      syncSoundEngines();
-      if (soundEnabledEl.checked) {
-        if (typeof BreathingAudio !== 'undefined' && BreathingAudio.enabled) {
-          BreathingAudio.unlockFromUserGesture();
-        }
-        if (typeof BreathingAudioMp3 !== 'undefined' && BreathingAudioMp3.enabled) {
-          BreathingAudioMp3.unlockFromUserGesture();
-        }
+      if (typeof BreathingAudio !== 'undefined') {
+        BreathingAudio.unlockFromUserGesture();
       }
       setSessionUI(true);
       loop();
