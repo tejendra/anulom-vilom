@@ -88,6 +88,117 @@
       opacity: 0.55;
     }
 
+    select.sr-only-select {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      clip-path: inset(50%);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    .picker-heading {
+      font-size: 0.875rem;
+      color: var(--muted);
+      margin: 0 0 0.4rem;
+    }
+
+    .choice-grid {
+      display: grid;
+      gap: 0.45rem;
+    }
+
+    .choice-grid--goal {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .choice-grid--level {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .choice-grid--level .choice-tile {
+      min-height: 4.85rem;
+      padding: 0.4rem 0.2rem;
+      font-size: 0.62rem;
+    }
+
+    .choice-tile__pattern {
+      display: block;
+      font-weight: 600;
+      line-height: 1.25;
+      text-wrap: balance;
+      max-width: 100%;
+    }
+
+    @media (max-width: 360px) {
+      .choice-grid--level {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    .choice-tile {
+      min-height: 4.25rem;
+      padding: 0.45rem 0.3rem;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--fg);
+      font-weight: 600;
+      font-size: 0.68rem;
+      line-height: 1.15;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.3rem;
+      cursor: pointer;
+      text-align: center;
+    }
+
+    .choice-tile:hover:not(:disabled) {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .choice-tile[aria-pressed='true'] {
+      border-color: var(--accent);
+      background: rgba(107, 163, 255, 0.14);
+      box-shadow: 0 0 0 1px var(--ring);
+    }
+
+    .choice-tile:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .choice-tile svg {
+      flex-shrink: 0;
+      opacity: 0.92;
+    }
+
+    .level-strip {
+      width: 100%;
+      max-width: 2.75rem;
+      height: auto;
+      display: block;
+    }
+
+    .level-strip .seg--in {
+      fill: var(--accent);
+    }
+
+    .level-strip .seg--out {
+      fill: rgba(232, 234, 239, 0.32);
+    }
+
+    .level-strip .seg--hold {
+      fill: rgba(139, 146, 158, 0.55);
+    }
+
     #duration {
       font-variant-numeric: tabular-nums;
     }
@@ -280,22 +391,94 @@
 
   <div class="panel">
     <div class="panel-fields" id="panelFields">
-      <label for="goal">Optimize for</label>
-      <select id="goal" aria-describedby="goalMeta">
+      <select id="goal" class="sr-only-select" aria-hidden="true" tabindex="-1" aria-describedby="goalMeta">
         <option value="ladder">Default</option>
         <option value="realWorld">Real-world / athletic</option>
         <option value="meditation">Meditation / stillness</option>
         <option value="co2">CO₂ tolerance</option>
       </select>
-      <p id="goalMeta" class="goal-meta"></p>
-
-      <label for="level">Pattern</label>
-      <select id="level" aria-describedby="levelDetail">
+      <select id="level" class="sr-only-select" aria-hidden="true" tabindex="-1" aria-describedby="levelDetail">
         <option value="1">Level 1 — In / Out</option>
         <option value="2">Level 2 — In · Hold · Out</option>
         <option value="3">Level 3 — In · Out · Hold</option>
         <option value="4">Level 4 — In · Hold · Out · Hold</option>
       </select>
+
+      <p class="picker-heading" id="goalPickerLabel">Optimize for</p>
+      <div class="choice-grid choice-grid--goal" id="goalVisual" role="group" aria-labelledby="goalPickerLabel">
+        <button type="button" class="choice-tile" data-goal="ladder" aria-pressed="false"
+          aria-label="Default — balanced ladder">
+          <svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true">
+            <path fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"
+              d="M4 18h5M9 14h5M14 10h5" />
+          </svg>
+          <span>Default</span>
+        </button>
+        <button type="button" class="choice-tile" data-goal="realWorld" aria-pressed="false"
+          aria-label="Real-world / athletic">
+          <svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true">
+            <path fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"
+              stroke-linejoin="round" d="M3 12h3l2-6 3 12 3-16 2 10h5" />
+          </svg>
+          <span>Athletic</span>
+        </button>
+        <button type="button" class="choice-tile" data-goal="meditation" aria-pressed="false"
+          aria-label="Meditation / stillness">
+          <svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.75" />
+            <circle cx="12" cy="12" r="2.5" fill="currentColor" opacity="0.35" stroke="none" />
+          </svg>
+          <span>Stillness</span>
+        </button>
+        <button type="button" class="choice-tile" data-goal="co2" aria-pressed="false" aria-label="CO₂ tolerance">
+          <svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true">
+            <ellipse cx="9" cy="13" rx="3.2" ry="5" fill="none" stroke="currentColor" stroke-width="1.75" />
+            <ellipse cx="15" cy="13" rx="3.2" ry="5" fill="none" stroke="currentColor" stroke-width="1.75" />
+          </svg>
+          <span>CO₂</span>
+        </button>
+      </div>
+      <p id="goalMeta" class="goal-meta"></p>
+
+      <p class="picker-heading" id="levelPickerLabel">Pattern</p>
+      <div class="choice-grid choice-grid--level" id="levelVisual" role="group" aria-labelledby="levelPickerLabel">
+        <button type="button" class="choice-tile" data-level="1" aria-pressed="false"
+          aria-label="Pattern: breathe in, then out (no holds)">
+          <svg class="level-strip" viewBox="0 0 48 10" aria-hidden="true">
+            <rect class="seg--in" x="1" y="1" width="21" height="8" rx="2" />
+            <rect class="seg--out" x="26" y="1" width="21" height="8" rx="2" />
+          </svg>
+          <span class="choice-tile__pattern">In / out</span>
+        </button>
+        <button type="button" class="choice-tile" data-level="2" aria-pressed="false"
+          aria-label="Pattern: in, hold full lungs, out">
+          <svg class="level-strip" viewBox="0 0 48 10" aria-hidden="true">
+            <rect class="seg--in" x="1" y="1" width="14" height="8" rx="2" />
+            <rect class="seg--hold" x="18" y="3" width="5" height="4" rx="1" />
+            <rect class="seg--out" x="26" y="1" width="21" height="8" rx="2" />
+          </svg>
+          <span class="choice-tile__pattern">In / hold / out</span>
+        </button>
+        <button type="button" class="choice-tile" data-level="3" aria-pressed="false"
+          aria-label="Pattern: in, out, then hold empty lungs">
+          <svg class="level-strip" viewBox="0 0 48 10" aria-hidden="true">
+            <rect class="seg--in" x="1" y="1" width="14" height="8" rx="2" />
+            <rect class="seg--out" x="18" y="1" width="14" height="8" rx="2" />
+            <rect class="seg--hold" x="35" y="3" width="5" height="4" rx="1" />
+          </svg>
+          <span class="choice-tile__pattern">In / out / hold</span>
+        </button>
+        <button type="button" class="choice-tile" data-level="4" aria-pressed="false"
+          aria-label="Pattern: in, hold, out, hold (full cycle)">
+          <svg class="level-strip" viewBox="0 0 48 10" aria-hidden="true">
+            <rect class="seg--in" x="1" y="1" width="10" height="8" rx="2" />
+            <rect class="seg--hold" x="12" y="3" width="4" height="4" rx="1" />
+            <rect class="seg--out" x="17" y="1" width="10" height="8" rx="2" />
+            <rect class="seg--hold" x="28" y="3" width="4" height="4" rx="1" />
+          </svg>
+          <span class="choice-tile__pattern">In / hold / out / hold</span>
+        </button>
+      </div>
       <p id="levelDetail" class="level-detail"></p>
 
       <label for="duration">Duration (seconds)</label>
@@ -347,6 +530,35 @@
     const levelDetailEl = document.getElementById('levelDetail');
     const panelFieldsEl = document.getElementById('panelFields');
     const loadWarnEl = document.getElementById('loadWarn');
+    const goalVisualEl = document.getElementById('goalVisual');
+    const levelVisualEl = document.getElementById('levelVisual');
+
+    function syncGoalTiles() {
+      if (!goalVisualEl) return;
+      goalVisualEl.querySelectorAll('[data-goal]').forEach((btn) => {
+        const v = btn.getAttribute('data-goal');
+        btn.setAttribute('aria-pressed', v === goalEl.value ? 'true' : 'false');
+      });
+    }
+
+    function syncLevelTiles() {
+      if (!levelVisualEl) return;
+      levelVisualEl.querySelectorAll('[data-level]').forEach((btn) => {
+        const v = btn.getAttribute('data-level');
+        btn.setAttribute('aria-pressed', v === levelEl.value ? 'true' : 'false');
+      });
+    }
+
+    function setPickerTilesDisabled(disabled) {
+      goalEl.disabled = disabled;
+      levelEl.disabled = disabled;
+      goalVisualEl?.querySelectorAll('button').forEach((b) => {
+        b.disabled = disabled;
+      });
+      levelVisualEl?.querySelectorAll('button').forEach((b) => {
+        b.disabled = disabled;
+      });
+    }
 
     let cancel = null;
     let deferredStopSessionTimerId = null;
@@ -524,6 +736,7 @@
         startBtn.disabled = !getSelectedTiming();
       }
       updateDurationNavState();
+      syncLevelTiles();
     }
 
     function updateGoalMeta() {
@@ -568,6 +781,8 @@
       if (sl && [...levelEl.options].some((o) => o.value === sl)) levelEl.value = sl;
       const sd = storageGet('duration');
       populateDurations(sd !== null ? sd : undefined);
+      syncGoalTiles();
+      syncLevelTiles();
     }
 
     const PHASE_GAP_MS = 500;
@@ -761,8 +976,7 @@
         timerEl.textContent = '—';
         ringEl.classList.remove('inhale', 'exhale', 'hold-in', 'hold-out');
         ringEl.classList.add('exhale', 'hold-out');
-        goalEl.disabled = false;
-        levelEl.disabled = false;
+        setPickerTilesDisabled(false);
         durationEl.disabled = false;
         updateDurationNavState();
         startBtn.disabled = !dataReady() || !getSelectedTiming();
@@ -772,11 +986,34 @@
     goalEl.addEventListener('change', () => {
       populateDurations();
       saveSettings();
+      syncGoalTiles();
     });
     levelEl.addEventListener('change', () => {
       populateDurations();
       saveSettings();
+      syncLevelTiles();
     });
+    if (goalVisualEl) {
+      goalVisualEl.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-goal]');
+        if (!btn || btn.disabled) return;
+        const v = btn.getAttribute('data-goal');
+        if (!v || goalEl.value === v) return;
+        goalEl.value = v;
+        goalEl.dispatchEvent(new Event('change'));
+      });
+    }
+    if (levelVisualEl) {
+      levelVisualEl.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-level]');
+        if (!btn || btn.disabled) return;
+        const v = btn.getAttribute('data-level');
+        if (!v || levelEl.value === v) return;
+        levelEl.value = v;
+        levelEl.dispatchEvent(new Event('change'));
+      });
+    }
+
     durationEl.addEventListener('change', () => {
       saveSettings();
       if (dataReady()) {
@@ -802,8 +1039,7 @@
         return;
       }
       startBtn.disabled = true;
-      goalEl.disabled = true;
-      levelEl.disabled = true;
+      setPickerTilesDisabled(true);
       durationEl.disabled = true;
       durationPrevBtn.disabled = true;
       durationNextBtn.disabled = true;
@@ -838,12 +1074,16 @@
       startBtn.disabled = true;
       durationPrevBtn.disabled = true;
       durationNextBtn.disabled = true;
+      setPickerTilesDisabled(true);
     } else if (!dataReady()) {
       loadWarnEl.hidden = false;
       loadWarnEl.textContent = 'Could not read timings for the selected track.';
       startBtn.disabled = true;
       durationPrevBtn.disabled = true;
       durationNextBtn.disabled = true;
+      setPickerTilesDisabled(true);
+      syncGoalTiles();
+      syncLevelTiles();
     } else {
       applySavedSettings();
     }
