@@ -573,22 +573,52 @@
     const PHASE_GAP_MS = 500;
     const PREP_SECONDS = 3;
 
-    function sleep(ms) {
-      return new Promise((r) => setTimeout(r, ms));
-    }
-
-    /** Short pause between phases so transitions don’t feel rushed. */
-    async function phaseGap(signal) {
-      const end = performance.now() + PHASE_GAP_MS;
-      while (performance.now() < end) {
-        if (signal.aborted) return false;
-        await sleep(50);
-      }
-      return true;
+    /** @returns {Promise<boolean>} resolves true after `ms`, or false if `signal` aborted. */
+    function sleepAbortable(ms, signal) {
+      return new Promise((resolve) => {
+        if (ms <= 0) {
+          resolve(true);
+          return;
+        }
+        if (signal.aborted) {
+          resolve(false);
+          return;
+        }
+        let settled = false;
+        const finish = (ok) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(tid);
+          signal.removeEventListener('abort', onAbort);
+          resolve(ok);
+        };
+        const tid = setTimeout(() => finish(true), ms);
+        const onAbort = () => finish(false);
+        signal.addEventListener('abort', onAbort, { once: true });
+      });
     }
 
     function fmtWholeSec(sec) {
       return String(Math.max(0, Math.ceil(Number(sec) || 0)));
+    }
+
+    /**
+     * Whole-second timer text only changes on second boundaries; sleep this long
+     * to avoid waking ~20×/s while the on-screen value is unchanged.
+     */
+    function msUntilNextTimerDisplayUpdate(endMs, nowMs) {
+      const remMs = Math.max(0, endMs - nowMs);
+      if (remMs <= 0) return 0;
+      const s = parseInt(fmtWholeSec(remMs / 1000), 10);
+      if (s <= 1) {
+        return remMs;
+      }
+      return remMs - (s - 1) * 1000;
+    }
+
+    /** Short pause between phases so transitions don’t feel rushed. */
+    async function phaseGap(signal) {
+      return sleepAbortable(PHASE_GAP_MS, signal);
     }
 
     function fmtMmSsFromMs(ms) {
@@ -615,12 +645,16 @@
       const transitionMs = animateRing ? totalSec * 1000 : 0;
       setPhaseUI(label, totalSec, phaseClass, transitionMs);
 
-      while (performance.now() < end) {
+      while (true) {
         if (signal.aborted) return false;
-        const left = Math.max(0, (end - performance.now()) / 1000);
-        timerEl.textContent = fmtWholeSec(left);
-        await sleep(50);
-        if (signal.aborted) return false;
+        const now = performance.now();
+        const remMs = Math.max(0, end - now);
+        timerEl.textContent = fmtWholeSec(remMs / 1000);
+        if (remMs <= 0) break;
+        const delayMs = msUntilNextTimerDisplayUpdate(end, now);
+        const waitMs = Math.max(1, Math.ceil(delayMs));
+        const completed = await sleepAbortable(waitMs, signal);
+        if (!completed) return false;
       }
       timerEl.textContent = '0';
       return true;
@@ -664,7 +698,7 @@
           sessionAutoStopTimerId = null;
         }, SESSION_AUTO_STOP_MS);
         tickSessionRemaining();
-        sessionRemainingIntervalId = setInterval(tickSessionRemaining, 500);
+        sessionRemainingIntervalId = setInterval(tickSessionRemaining, 1000);
 
         while (!signal.aborted) {
           const timing = getSelectedTiming();
