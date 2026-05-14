@@ -33,7 +33,7 @@ function L1(i, e) {
     holdIn: 0,
     exhale: e,
     holdOut: 0,
-    label: `${i} / ${e}`,
+    label: `${i} · ${e}`,
   };
 }
 

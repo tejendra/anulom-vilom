@@ -256,6 +256,7 @@
       flex-wrap: wrap;
       gap: 0.5rem;
       margin-top: 0.25rem;
+      flex-direction: column;
     }
 
     button {
@@ -342,6 +343,21 @@
       font-size: 2.25rem;
       margin-top: 0.35rem;
       color: var(--accent);
+    }
+
+    .session-wrap-up {
+      position: absolute;
+      font-size: 0.78rem;
+      font-weight: 500;
+      color: var(--muted);
+      line-height: 1.35;
+      max-width: 14rem;
+      bottom: -50px;
+      text-align: center;
+    }
+
+    body:not(.session-active) .session-wrap-up {
+      display: none;
     }
 
     .session-remaining {
@@ -548,9 +564,10 @@
             thumb and ring finger and pause briefly; only as long as it stays easy.
           </li>
           <li>
-            One classic full round: <strong>inhale left → exhale right → inhale right → exhale left</strong>. Repeat,
-            keeping the breath
-            smooth and never strained.
+            One <strong>full round</strong> is one complete pass through every phase this app shows for your
+            pattern (each inhale, exhale, and hold in order). A common simple pattern is
+            <strong>inhale left → exhale right → inhale right → exhale left</strong>; insert the
+            <strong>hold</strong> steps where your level includes them.
           </li>
           <li>If you feel dizzy or agitated, stop, breathe normally through both nostrils, and rest.</li>
         </ol>
@@ -689,6 +706,9 @@
       <div id="timer" class="timer">—</div>
       <div id="sessionRemaining" class="session-remaining"></div>
     </div>
+    <p id="sessionWrapUp" class="session-wrap-up" hidden>
+      Finishing your last full round—then the session will end.
+    </p>
   </div>
 
   <p id="loadWarn" class="warn" hidden></p>
@@ -704,6 +724,7 @@
     const phaseEl = document.getElementById('phase');
     const timerEl = document.getElementById('timer');
     const sessionRemainingEl = document.getElementById('sessionRemaining');
+    const sessionWrapUpEl = document.getElementById('sessionWrapUp');
     const ringEl = document.getElementById('ring');
     const goalEl = document.getElementById('goal');
     const goalMetaEl = document.getElementById('goalMeta');
@@ -1085,7 +1106,7 @@
         }
         if (!(await runPrep(signal))) return;
 
-        let sessionExpired = false;
+        let sessionEndPending = false;
         const sessionEndPerf = performance.now() + SESSION_AUTO_STOP_MS;
         function tickSessionRemaining() {
           const leftMs = Math.max(0, sessionEndPerf - performance.now());
@@ -1093,13 +1114,26 @@
         }
 
         sessionAutoStopTimerId = setTimeout(() => {
-          sessionExpired = true;
+          sessionEndPending = true;
           sessionAutoStopTimerId = null;
+          if (sessionWrapUpEl) {
+            sessionWrapUpEl.hidden = false;
+          }
         }, SESSION_AUTO_STOP_MS);
         tickSessionRemaining();
         sessionRemainingIntervalId = setInterval(tickSessionRemaining, 1000);
 
         while (!signal.aborted) {
+          /* 15 min limit: never start a new pattern after the timer; current round always finishes. */
+          if (sessionEndPending) {
+            if (typeof BreathingAudio !== 'undefined') {
+              BreathingAudio.notifySessionTimeEnd();
+              if (BreathingAudio.SESSION_END_TAIL_MS) {
+                deferAudioStopMs = BreathingAudio.SESSION_END_TAIL_MS;
+              }
+            }
+            break;
+          }
           const timing = getSelectedTiming();
           if (!timing) break;
           const inhale = Math.max(0.5, timing.inhale);
@@ -1122,16 +1156,6 @@
             if (!(await runHold(signal, 'Hold', holdOut, 'exhale'))) break;
             if (!(await phaseGap(signal))) break;
           }
-
-          if (sessionExpired) {
-            if (typeof BreathingAudio !== 'undefined') {
-              BreathingAudio.notifySessionTimeEnd();
-              if (BreathingAudio.SESSION_END_TAIL_MS) {
-                deferAudioStopMs = BreathingAudio.SESSION_END_TAIL_MS;
-              }
-            }
-            break;
-          }
         }
       };
 
@@ -1147,6 +1171,9 @@
           sessionRemainingIntervalId = null;
         }
         sessionRemainingEl.textContent = '';
+        if (sessionWrapUpEl) {
+          sessionWrapUpEl.hidden = true;
+        }
         if (deferAudioStopMs > 0) {
           deferredStopSessionTimerId = setTimeout(() => {
             deferredStopSessionTimerId = null;
