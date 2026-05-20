@@ -1060,16 +1060,24 @@
       }
     }
 
-    async function runCountdown(signal, label, totalSec, phaseClass, animateRing) {
+    async function runCountdown(signal, label, totalSec, phaseClass, animateRing, prepAudio = false) {
       const start = performance.now();
       const end = start + totalSec * 1000;
       const transitionMs = animateRing ? totalSec * 1000 : 0;
       setPhaseUI(label, totalSec, phaseClass, transitionMs);
+      let lastPrepCueSec = -1;
 
       while (true) {
         if (signal.aborted) return false;
         const now = performance.now();
         const remMs = Math.max(0, end - now);
+        const sec = parseInt(fmtWholeSec(remMs / 1000), 10);
+        if (prepAudio && sec >= 1 && sec <= totalSec && sec !== lastPrepCueSec) {
+          if (typeof BreathingAudio !== 'undefined') {
+            BreathingAudio.playPrepCountdownTone(sec);
+          }
+          lastPrepCueSec = sec;
+        }
         timerEl.textContent = fmtWholeSec(remMs / 1000);
         if (remMs <= 0) break;
         const delayMs = msUntilNextTimerDisplayUpdate(end, now);
@@ -1087,7 +1095,7 @@
     }
 
     async function runPrep(signal) {
-      return runCountdown(signal, 'Get ready', PREP_SECONDS, 'hold-out', false);
+      return runCountdown(signal, 'Get ready', PREP_SECONDS, 'hold-out', false, true);
     }
 
     async function loop() {
@@ -1127,6 +1135,7 @@
         while (!signal.aborted) {
           /* 15 min limit: never start a new pattern after the timer; current round always finishes. */
           if (sessionEndPending) {
+            phaseEl.textContent = 'Done';
             if (typeof BreathingAudio !== 'undefined') {
               BreathingAudio.notifySessionTimeEnd();
               if (BreathingAudio.SESSION_END_TAIL_MS) {

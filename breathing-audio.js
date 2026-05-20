@@ -22,7 +22,8 @@
   /** @type {{ source: AudioBufferSourceNode; gain: GainNode } | null} */
   let current = null;
 
-  const SESSION_END_MASTER_FADE_SEC = 4.2;
+  /** Last tone ends ~1.78s after t0; tail used to defer stopSession until the chime finishes. */
+  const SESSION_COMPLETE_CHIME_SEC = 1.85;
 
   function getBus() {
     if (bus) return bus;
@@ -120,18 +121,55 @@
     master.gain.linearRampToValueAtTime(0.0001, now + 0.36);
   }
 
-  /** Long master fade when the session timer ends. */
+  const PREP_COUNTDOWN_FREQS = { 3: 523.25, 2: 659.25, 1: 783.99 };
+
+  function playToneCueAt(freq, dur, startAt) {
+    const b = getBus();
+    if (!b) return;
+    const { ctx, master } = b;
+    const start = startAt ?? ctx.currentTime;
+    const osc = ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.value = freq;
+    const g = ctx.createGain();
+    const attack = 0.04;
+    const holdUntil = start + dur * 0.55;
+    g.gain.setValueAtTime(0.0001, start);
+    g.gain.linearRampToValueAtTime(0.2, start + attack);
+    g.gain.linearRampToValueAtTime(0.17, holdUntil);
+    g.gain.exponentialRampToValueAtTime(0.0001, start + dur);
+    osc.connect(g);
+    g.connect(master);
+    osc.start(start);
+    osc.stop(start + dur + 0.02);
+  }
+
+  function playPrepCountdownTone(secondsLeft) {
+    const freq = PREP_COUNTDOWN_FREQS[secondsLeft];
+    if (freq) playToneCueAt(freq, 0.42);
+  }
+
+  /** Three ascending tones when the 15-minute session finishes (not on early stop). */
+  function playSessionComplete() {
+    const b = getBus();
+    if (!b) return;
+    const t0 = b.ctx.currentTime;
+    playToneCueAt(523.25, 0.58, t0);
+    playToneCueAt(659.25, 0.58, t0 + 0.34);
+    playToneCueAt(783.99, 1.1, t0 + 0.68);
+  }
+
+  /** Fade any phase cue, then play the session-complete chime. */
   function notifySessionTimeEnd() {
     const b = getBus();
     if (!b) return;
     const { ctx, master } = b;
     if (ctx.state === 'suspended') void ctx.resume();
     const now = ctx.currentTime;
-    const tail = SESSION_END_MASTER_FADE_SEC;
-    fadeOutCurrent(now, Math.min(0.9, tail * 0.22));
+    fadeOutCurrent(now, 0.28);
     master.gain.cancelScheduledValues(now);
-    master.gain.setValueAtTime(Math.max(master.gain.value, 0.0001), now);
-    master.gain.linearRampToValueAtTime(0.0001, now + tail);
+    master.gain.setValueAtTime(1, now);
+    playSessionComplete();
   }
 
   async function playPhaseCue(label, phaseClass, durationSec) {
@@ -191,6 +229,8 @@
     stopSession,
     playPhaseCue,
     notifySessionTimeEnd,
-    SESSION_END_TAIL_MS: Math.round(SESSION_END_MASTER_FADE_SEC * 1000) + 500,
+    playSessionComplete,
+    playPrepCountdownTone,
+    SESSION_END_TAIL_MS: Math.round(SESSION_COMPLETE_CHIME_SEC * 1000) + 300,
   };
 })(typeof window !== 'undefined' ? window : globalThis);
