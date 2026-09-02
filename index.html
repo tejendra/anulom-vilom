@@ -127,6 +127,16 @@
       font-size: 0.62rem;
     }
 
+    .choice-grid--length {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .choice-tile--compact {
+      min-height: 2.5rem;
+      padding: 0.45rem 0.5rem;
+      font-size: 0.8rem;
+    }
+
     .choice-tile__pattern {
       display: block;
       font-weight: 600;
@@ -682,6 +692,16 @@
           ›
         </button>
       </div>
+
+      <p class="picker-heading" id="lengthPickerLabel">Session length</p>
+      <div class="choice-grid choice-grid--length" id="lengthVisual" role="group" aria-labelledby="lengthPickerLabel">
+        <button type="button" class="choice-tile choice-tile--compact" data-minutes="5" aria-pressed="false"
+          aria-label="5 minute session">5 min</button>
+        <button type="button" class="choice-tile choice-tile--compact" data-minutes="10" aria-pressed="false"
+          aria-label="10 minute session">10 min</button>
+        <button type="button" class="choice-tile choice-tile--compact" data-minutes="15" aria-pressed="false"
+          aria-label="15 minute session">15 min</button>
+      </div>
     </div>
 
     <div class="controls">
@@ -738,6 +758,7 @@
     const loadWarnEl = document.getElementById('loadWarn');
     const goalVisualEl = document.getElementById('goalVisual');
     const levelVisualEl = document.getElementById('levelVisual');
+    const lengthVisualEl = document.getElementById('lengthVisual');
 
     function syncGoalTiles() {
       if (!goalVisualEl) return;
@@ -755,6 +776,22 @@
       });
     }
 
+    /* Session length: how long before the auto-stop kicks in. */
+    const SESSION_MINUTE_OPTIONS = [5, 10, 15];
+    let sessionMinutes = 15;
+
+    function sessionAutoStopMs() {
+      return sessionMinutes * 60 * 1000;
+    }
+
+    function syncLengthTiles() {
+      if (!lengthVisualEl) return;
+      lengthVisualEl.querySelectorAll('[data-minutes]').forEach((btn) => {
+        const v = Number(btn.getAttribute('data-minutes'));
+        btn.setAttribute('aria-pressed', v === sessionMinutes ? 'true' : 'false');
+      });
+    }
+
     function setPickerTilesDisabled(disabled) {
       goalEl.disabled = disabled;
       levelEl.disabled = disabled;
@@ -764,6 +801,9 @@
       levelVisualEl?.querySelectorAll('button').forEach((b) => {
         b.disabled = disabled;
       });
+      lengthVisualEl?.querySelectorAll('button').forEach((b) => {
+        b.disabled = disabled;
+      });
     }
 
     let cancel = null;
@@ -771,8 +811,6 @@
     /** Auto-stop the session after this long (ms). */
     let sessionAutoStopTimerId = null;
     let sessionRemainingIntervalId = null;
-
-    const SESSION_AUTO_STOP_MS = 15 * 60 * 1000;
 
     function setSessionUI(active) {
       document.body.classList.toggle('session-active', active);
@@ -813,6 +851,7 @@
       storageSet('goal', goalEl.value);
       storageSet('level', levelEl.value);
       storageSet('duration', durationEl.value);
+      storageSet('sessionMinutes', String(sessionMinutes));
     }
 
     function activeLibrary() {
@@ -987,8 +1026,11 @@
       if (sl && [...levelEl.options].some((o) => o.value === sl)) levelEl.value = sl;
       const sd = storageGet('duration');
       populateDurations(sd !== null ? sd : undefined);
+      const sm = Number(storageGet('sessionMinutes'));
+      if (SESSION_MINUTE_OPTIONS.includes(sm)) sessionMinutes = sm;
       syncGoalTiles();
       syncLevelTiles();
+      syncLengthTiles();
     }
 
     const PHASE_GAP_MS = 500;
@@ -1116,7 +1158,7 @@
         if (!(await runPrep(signal))) return;
 
         let sessionEndPending = false;
-        const sessionEndPerf = performance.now() + SESSION_AUTO_STOP_MS;
+        const sessionEndPerf = performance.now() + sessionAutoStopMs();
         function tickSessionRemaining() {
           const leftMs = Math.max(0, sessionEndPerf - performance.now());
           sessionRemainingEl.textContent = `${fmtMmSsFromMs(leftMs)}`;
@@ -1128,12 +1170,12 @@
           if (sessionWrapUpEl) {
             sessionWrapUpEl.hidden = false;
           }
-        }, SESSION_AUTO_STOP_MS);
+        }, sessionAutoStopMs());
         tickSessionRemaining();
         sessionRemainingIntervalId = setInterval(tickSessionRemaining, 1000);
 
         while (!signal.aborted) {
-          /* 15 min limit: never start a new pattern after the timer; current round always finishes. */
+          /* Session limit: never start a new pattern after the timer; current round always finishes. */
           if (sessionEndPending) {
             phaseEl.textContent = 'Done';
             if (typeof BreathingAudio !== 'undefined') {
@@ -1234,6 +1276,17 @@
         levelEl.dispatchEvent(new Event('change'));
       });
     }
+    if (lengthVisualEl) {
+      lengthVisualEl.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-minutes]');
+        if (!btn || btn.disabled) return;
+        const v = Number(btn.getAttribute('data-minutes'));
+        if (!SESSION_MINUTE_OPTIONS.includes(v) || v === sessionMinutes) return;
+        sessionMinutes = v;
+        syncLengthTiles();
+        saveSettings();
+      });
+    }
 
     durationEl.addEventListener('change', () => {
       saveSettings();
@@ -1305,6 +1358,7 @@
       setPickerTilesDisabled(true);
       syncGoalTiles();
       syncLevelTiles();
+      syncLengthTiles();
     } else {
       applySavedSettings();
     }
