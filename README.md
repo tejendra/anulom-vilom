@@ -4,7 +4,7 @@ A minimal, single-page web app for guided **anulom vilom** (alternate nostril) b
 
 ## Features
 
-- **15-minute session** with a 3-second prep countdown; stops after the current full round when time is up
+- **5, 10, or 15 minute session** with a 3-second prep countdown; stops after the current full round when time is up
 - **Optimize for**: Default (balanced ladder), Athletic, Stillness (meditation), or CO₂ tolerance—each with its own timing presets
 - **Pattern levels**:
   - In / Out
@@ -19,7 +19,7 @@ A minimal, single-page web app for guided **anulom vilom** (alternate nostril) b
 
 ## Usage
 
-1. Choose **Optimize for** and **Pattern**, then pick a **Duration** preset.
+1. Choose **Optimize for** and **Pattern**, then pick a **Duration** preset and a **Session length**.
 2. Click **Start** (or tap the circle during a session to stop).
 3. Follow each phase: inhale through the open nostril, exhale through the other; add holds only when your pattern includes them.
 4. Stop if you feel dizzy, agitated, or unwell.
