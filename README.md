@@ -13,7 +13,7 @@ A minimal, single-page web app for guided **anulom vilom** (alternate nostril) b
   - In / Hold / Out / Hold
 - **Duration presets** per goal and pattern (seconds per phase)
 - **Visual cue**: ring animation and on-screen phase labels (Inhale, Exhale, Hold)
-- **Audio cues** for inhale, exhale, and hold (Web Audio API + bundled clips)
+- **Audio cues** for inhale, exhale, and hold (soft Web Audio beds)
 - **Remembers your choices** in `localStorage`
 - Collapsible **instructions** and a short **disclaimer** (not medical advice)
 
